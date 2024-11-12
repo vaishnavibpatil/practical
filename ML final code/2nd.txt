@@ -1,0 +1,73 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.impute import SimpleImputer
+
+# Load the dataset
+df = pd.read_csv("./datasets/uber.csv")
+
+# view dataset
+print(df)
+
+
+df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+# print(df['pickup_datetime'])
+df['hour'] = df['pickup_datetime'].dt.hour
+# print(df['hour'])
+df['day_of_week'] = df['pickup_datetime'].dt.dayofweek
+# print(df['day_of_week'])
+
+# check datasets for more columns we added 'hour' and 'day_of_week' column
+print(df)
+
+# Drop unnecessary columns
+df = df.drop(columns=['Unnamed: 0', 'key', 'pickup_datetime'])
+
+# check datasets for removal of columns we removed 'first_column with no name', 'key' and 'pickup_datetime' column
+print(df)
+
+# Handle missing values
+imputer = SimpleImputer(strategy='mean')
+df_imputed = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
+
+# Split the data into features (X) and target (y)
+X = df_imputed.drop(columns=['fare_amount'])  # create new dataset ignoring 'fare_amount' column
+y = df_imputed['fare_amount']  # create a series of only 'fare_amount' column
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize the features (scaling)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+ Implement Linear Regression
+lr_model = LinearRegression()
+lr_model.fit(X_train_scaled, y_train)
+y_pred_lr = lr_model.predict(X_test_scaled)
+
+# Implement Ridge Regression
+ridge_model = Ridge(alpha=1.0)  # You can experiment with different alpha values
+ridge_model.fit(X_train_scaled, y_train)
+y_pred_ridge = ridge_model.predict(X_test_scaled)
+
+
+# Implement Lasso Regression
+lasso_model = Lasso(alpha=0.1)  # You can experiment with different alpha values
+lasso_model.fit(X_train_scaled, y_train)
+y_pred_lasso = lasso_model.predict(X_test_scaled)
+
+# Evaluate the models
+def evaluate_model(y_true, y_pred, model_name):
+    r2 = r2_score(y_true, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    print(f"{model_name} - R2 Score: {r2:.4f}, RMSE: {rmse:.2f}")
+
+evaluate_model(y_test, y_pred_lr, "Linear Regression")
+evaluate_model(y_test, y_pred_ridge, "Ridge Regression")
+evaluate_model(y_test, y_pred_lasso, "Lasso Regression")

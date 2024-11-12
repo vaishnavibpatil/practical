@@ -1,0 +1,188 @@
+import numpy as np
+import random
+
+# Initialize an empty board
+board = np.zeros((3, 3), dtype=int)
+
+# Function to display the board
+def display_board(board):
+    for row in board:
+        display_row = []
+        for cell in row:
+            if cell == 1:
+                display_row.append("X")
+            elif cell == -1:
+                display_row.append("O")
+            else:
+                display_row.append(" ")
+        print(" | ".join(display_row))
+        print("-" * 9)
+    print(" ")
+
+# Function to check if a move is valid
+def is_valid_move(board, row, col):
+    return board[row][col] == 0
+
+# Function to check if a player has won
+def check_win(board, player):
+    # Check rows
+    for row in board:
+        if all(cell == player for cell in row):
+            return True
+    # Check columns
+    for col in board.T:
+        if all(cell == player for cell in col):
+            return True
+    # Check diagonals
+    if all(board[i][i] == player for i in range(3)) or all(board[i][2 - i] == player for i in range(3)):
+        return True
+    return False
+
+# Function to check if the game is a draw
+def check_draw(board):
+    return np.all(board != 0)
+
+# Q-Learning agent class
+class QLearningAgent:
+    def __init__(self, epsilon, alpha, gamma):
+        self.epsilon = epsilon  # Exploration rate
+        self.alpha = alpha  # Learning rate
+        self.gamma = gamma  # Discount factor
+        self.q_table = {}  # Q-value table
+
+    # Function to select an action
+    def get_action(self, state):
+        state_tuple = tuple(map(tuple, state))
+        if np.random.rand() < self.epsilon:
+            # Choose a random valid move
+            valid_moves = []
+            for i in range(9):
+                if state[i // 3][i % 3] == 0:
+                    valid_moves.append(i)
+            return random.choice(valid_moves)
+        else:
+            # Choose the move with the highest Q-value
+            max_q_value = -float('inf')
+            best_action = None
+            for i in range(9):
+                if state[i // 3][i % 3] == 0:
+                    action_q_value = self.q_table.get(state_tuple, {}).get(i, 0)
+                    if action_q_value > max_q_value:
+                        max_q_value = action_q_value
+                        best_action = i
+            if best_action is None:
+                valid_moves = [i for i in range(9) if state[i // 3][i % 3] == 0]
+                best_action = random.choice(valid_moves)
+            return best_action
+
+    # Function to update the Q-table
+    def learn(self, state, action, reward, next_state):
+        state_tuple = tuple(map(tuple, state))
+        next_state_tuple = tuple(map(tuple, next_state))
+        if state_tuple not in self.q_table:
+            self.q_table[state_tuple] = {}
+        if next_state_tuple not in self.q_table:
+            self.q_table[next_state_tuple] = {}
+        if action not in self.q_table[state_tuple]:
+            self.q_table[state_tuple][action] = 0
+
+        # Find the best action for the next state
+        best_next_action = None
+        max_next_q_value = -float('inf')
+        for i in range(9):
+            if next_state[i // 3][i % 3] == 0:
+                q_value = self.q_table.get(next_state_tuple, {}).get(i, 0)
+                if q_value > max_next_q_value:
+                    max_next_q_value = q_value
+                    best_next_action = i
+
+        if best_next_action is not None:
+            self.q_table[state_tuple][action] += self.alpha * (
+                reward + self.gamma * max_next_q_value - self.q_table[state_tuple][action]
+            )
+        else:
+            self.q_table[state_tuple][action] += self.alpha * (reward - self.q_table[state_tuple][action])
+
+# Function to play a game between two agents
+def play_game(agent1, agent2, board):
+    state = board.copy()
+    while True:
+        # Agent 1's turn
+        action1 = agent1.get_action(state)
+        row, col = divmod(action1, 3)
+        state[row][col] = 1
+
+        # Check if Agent 1 wins
+        if check_win(state, 1):
+            agent1.learn(state, action1, 1, state)
+            return 1  # Agent 1 wins
+
+        # Check for a draw
+        if check_draw(state):
+            return 0  # Draw
+
+        # Agent 2's turn
+        action2 = agent2.get_action(state)
+        row, col = divmod(action2, 3)
+        state[row][col] = -1
+
+        # Check if Agent 2 wins
+        if check_win(state, -1):
+            agent2.learn(state, action2, 1, state)
+            return -1  # Agent 2 wins
+
+# Function to train Q-learning agents
+def train_q_learning_agents(agent1, agent2, num_episodes):
+    for episode in range(num_episodes):
+        board = np.zeros((3, 3), dtype=int)
+        if episode % 2 == 0:
+            result = play_game(agent1, agent2, board)
+            if result == 1:
+                agent1.learn(board, None, 1, board)
+                agent2.learn(board, None, -1, board)
+            elif result == -1:
+                agent1.learn(board, None, -1, board)
+                agent2.learn(board, None, 1, board)
+            else:
+                agent1.learn(board, None, 0, board)
+                agent2.learn(board, None, 0, board)
+        else:
+            result = play_game(agent2, agent1, board)
+            if result == 1:
+                agent1.learn(board, None, -1, board)
+                agent2.learn(board, None, 1, board)
+            elif result == -1:
+                agent1.learn(board, None, 1, board)
+                agent2.learn(board, None, -1, board)
+            else:
+                agent1.learn(board, None, 0, board)
+                agent2.learn(board, None, 0, board)
+
+# Initialize agents and train them
+agent1 = QLearningAgent(epsilon=0.2, alpha=0.1, gamma=0.9)
+agent2 = QLearningAgent(epsilon=0.2, alpha=0.1, gamma=0.9)
+train_q_learning_agents(agent1, agent2, num_episodes=10000)
+
+# Play a game between two trained agents
+board = np.zeros((3, 3), dtype=int)
+while True:
+    display_board(board)
+    action1 = agent1.get_action(board)
+    row, col = divmod(action1, 3)
+    board[row][col] = 1
+    if check_win(board, 1):
+        display_board(board)
+        print("Agent 1 wins!")
+        break
+    if check_draw(board):
+        display_board(board)
+        print("It's a draw!")
+        break
+    display_board(board)
+    action2 = agent2.get_action(board)
+    row, col = divmod(action2, 3)
+    board[row][col] = -1
+    if check_win(board, -1):
+        display_board(board)
+        print("Agent 2 wins!")
+        break
