@@ -1,0 +1,39 @@
+import pandas as pd 
+
+df= pd.read_csv("6_Data.csv")
+df
+
+shopping_branch = df.groupby("shopping_mall")
+shopping_branch.count()
+
+categories = df.groupby("category")
+categories.count()
+
+unwanted_cols = ["invoice_no", "customer_id", "invoice_date", "gender", "payment_method"]
+
+each_mall_sales = df.groupby("shopping_mall")
+each_mall_sales.sum().drop(columns=unwanted_cols)
+
+each_category_sale = df.groupby("category")
+each_category_sale.sum().drop(columns=unwanted_cols)
+
+each_mall_sales.sum().sort_values(by= "price", ascending=False).drop(columns=unwanted_cols)
+
+each_category_sale.sum().sort_values(by="price", ascending=False).drop(columns=unwanted_cols)
+
+each_mall_each_caetgory = df.groupby(["shopping_mall", "category"])
+each_mall_each_caetgory.sum().drop(columns=unwanted_cols)
+
+import matplotlib.pyplot as plt
+
+plt.pie(each_mall_sales.sum()["price"], labels=each_mall_sales.sum().index)
+plt.show()
+
+plt.pie(each_category_sale.sum()["price"], labels=each_category_sale.sum().index)
+plt.show()
+
+combined_pivot = df.pivot_table(index="shopping_mall", columns="category", values="price", aggfunc="sum")
+combined_pivot
+
+combined_pivot.plot(kind="bar",figsize=(12, 6))
+plt.show()
